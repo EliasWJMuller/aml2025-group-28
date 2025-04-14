@@ -1,0 +1,100 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Train PDBs",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "main_rna_pdb_single.py",
+            "console": "integratedTerminal",
+            "args": [
+                "--dataset",
+                "rna3db",
+                "--epochs=5",
+                "--batch_size=2",
+                "--dim=64",
+                "--n_layer=2",
+                "--lr=1e-3",
+                "--timesteps=500",
+                "--mode",
+                "coarse-grain",
+                "--knn=2"
+            ]
+        },
+        {
+            "name": "Preprocess PDBs",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "preprocess_rna_pdb.py",
+            "console": "integratedTerminal",
+            "args": [
+            ]
+        },
+        {
+            "name": "Sample",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "sample_rna_pdb.py",
+            "console": "integratedTerminal",
+            "args": [
+                "--seed=10"
+                "--batch_size=2",
+                "--dim=256",
+                "--n_layer=4",
+                "--timesteps=1000",
+                "--knns=1",
+                "--sampling-resids=sampling_masks.txt"
+            ]
+        },
+        {
+            "name": "BGSU",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "tools/extract_bgsu_seq.py",
+            "console": "integratedTerminal",
+        },
+        {
+            "name": "Current Python file",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Evaluate Predictions",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "evaluate_predictions.py",
+            "console": "integratedTerminal",
+            "args": [
+                // "--preds-path=/home/mjustyna/RNA-GNN/samples/af3_preds/ours/",
+                // "--templates-path=/home/mjustyna/data/motifs/il_pdbs",
+                // "--targets-path=/home/mjustyna/RNA-GNN/samples/af3_preds/targets/",
+                "--preds-path=/home/mjustyna/RNA-GNN/samples/RhoFold/1_segment/",
+                // "--preds-path=/home/mjustyna/RNA-GNN/samples/DRfold/1/",
+                // "--templates-path=/home/mjustyna/data/eval_examples_pdb/clean/",
+                "--targets-path=/home/mjustyna/data/desc-pdbs/",
+                // "--arena_path=/home/mjustyna/software/Arena/"
+                // "--templates-path=/home/mjustyna/data/motifs/j3_pdbs/",
+                // "--targets-path=/home/mjustyna/data/motifs/j3_pdbs/",
+                // "--templates-path=/home/mjustyna/RNA-GNN/user_inputs/pdbs/",
+                // "--sim_rna=/home/mjustyna/software/SimRNA_64bitIntel_Linux_staticLibs_withoutOpenMP",
+            ]
+        },
+        {
+            "name": "User Input",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "prepare_user_input.py",
+            "console": "integratedTerminal",
+            "args": [
+                "--input-dir=user_inputs",
+            ]
+        },
+
+
+    ]
+}
