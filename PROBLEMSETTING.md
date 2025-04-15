@@ -35,10 +35,10 @@ Denoising Diffusion Probabilistic Models (DDPM) [2] learn to reverse a fixed pro
 Denoising Diffusion Implicit Models (DDIM) [2] enable faster sampling using the same trained network $ϵ_θ(x_t, t)$. It employs a non-Markovian process allowing deterministic updates (for variance $σ = 0$) that skip steps via the relation:
 
 $$
-x_{τ_{i-1}} = \sqrt{\bar\alpha_{τ_{i-1}}} \, (\text{predicted } x_0) + \sqrt{1-\bar\alpha_{τ_{i-1}}} \, ϵ_θ(x_{τ_i}, τ_i)
+x_{τ_{i-1}} = \sqrt{\bar\alpha_{τ_{i-1}}} \ (\text{predicted } x_0) + \sqrt{1-\bar\alpha_{τ_{i-1}}} \, ϵ_θ(x_{τ_i}, τ_i)
 $$
 
-This uses a short subsequence of timesteps ${τ₁, ..., τ_S} (S ≪ T)$, where the predicted x₀ is derived from $x_{τ_i}$ and $ϵ_θ(x_{τ_i}, τ_i)$.
+This uses a short subsequence of timesteps $\{τ₁, ..., τ_S\} (S ≪ T)$, where the predicted x₀ is derived from $x_{τ_i}$ and $ϵ_θ(x_{τ_i}, τ_i)$.
 
 Inductive Moment Matching (IMM) [7] aims for highly efficient one-step or few-step generation, often using a distinct training objective (e.g., matching moments of distributions across noise levels) rather than requiring a pre-trained DDPM/DDIM model.
 
