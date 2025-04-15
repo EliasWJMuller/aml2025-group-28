@@ -35,7 +35,7 @@ Denoising Diffusion Probabilistic Models (DDPM) [2] learn to reverse a fixed pro
 Denoising Diffusion Implicit Models (DDIM) [2] enable faster sampling using the same trained network $ϵ_θ(x_t, t)$. It employs a non-Markovian process allowing deterministic updates (for variance $σ = 0$) that skip steps via the relation:
 
 $$
-x_{τ_{i-1}} = \sqrt{\\bar{α}_{τ_{i-1}}} \, (\text{predicted } x₀) + \sqrt{1-\\bar{α}_{τ_{i-1}}} \, ϵ₍θ₎(x_{τ_i}, τ_i)
+x_{τ_{i-1}} = \sqrt{\bar\alpha_{τ_{i-1}}} \, (\text{predicted } x_0) + \sqrt{1-\bar\alpha_{τ_{i-1}}} \, ϵ_θ(x_{τ_i}, τ_i)
 $$
 
 This uses a short subsequence of timesteps ${τ₁, ..., τ_S} (S ≪ T)$, where the predicted x₀ is derived from $x_{τ_i}$ and $ϵ_θ(x_{τ_i}, τ_i)$.
@@ -93,17 +93,17 @@ where:
 - **dᵢ** represents the distance (in Angstroms) between the ith pair of aligned residues.
 - **d₀** is a normalization factor (in Angstroms), which is calculated by
 
-  $$
-  d₀ =
-  \begin{cases}
-  0.3, & \text{if } L_{ref} < 12; \\
-  0.4, & \text{if } 12 \leq L_{ref} \leq 15; \\
-  0.5, & \text{if } 16 \leq L_{ref} \leq 19; \\
-  0.6, & \text{if } 20 \leq L_{ref} \leq 23; \\
-  0.7, & \text{if } 24 \leq L_{ref} \leq 29; \\
-  0.6\sqrt{L_{ref}-0.5}-2.5, & \text{if } L_{ref} \geq 30.
-  \end{cases}
-  $$
+$$
+d_0 =
+\begin{cases}
+0.3, & \text{if } L_{ref} < 12; \\
+0.4, & \text{if } 12 \leq L_{ref} \leq 15; \\
+0.5, & \text{if } 16 \leq L_{ref} \leq 19; \\
+0.6, & \text{if } 20 \leq L_{ref} \leq 23; \\
+0.7, & \text{if } 24 \leq L_{ref} \leq 29; \\
+0.6\sqrt{L_{ref}-0.5}-2.5, & \text{if } L_{ref} \geq 30.
+\end{cases}
+$$
 
 Following the protocol of the Kaggle competition, we will generate five distinct predictions for each target protein. The final structure prediction quality score will be determined by averaging the highest TM-scores (best-of-5) achieved for each target in the dataset.
 
