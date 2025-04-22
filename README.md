@@ -15,8 +15,8 @@ Create a virtual env and install dependencies
 ```bash
 uv venv --python 3.12
 source .venv/bin/activate
-uv pip install torch 
-uv sync --no-build-isolation --no-cache # install dependencies from pyproject.toml file, resolving conflics
+uv pip install setuptools torch 
+uv add "grapharna@RNAgrail" --no-build-isolation --no-cache
 ```
 
 Note that the list of dependencies does not include the `flash-attn`, since that requires a cuda installation.

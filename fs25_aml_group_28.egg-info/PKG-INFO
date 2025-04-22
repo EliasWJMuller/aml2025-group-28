@@ -1,0 +1,52 @@
+Metadata-Version: 2.4
+Name: fs25-aml-group-28
+Version: 0.1.0
+Summary: Add your description here
+Requires-Python: >=3.12
+Description-Content-Type: text/markdown
+Requires-Dist: biopython>=1.85
+Requires-Dist: gdown>=5.2.0
+Requires-Dist: ml-collections>=1.1.0
+Requires-Dist: numpy>=2.2.5
+Requires-Dist: packaging>=25.0
+Requires-Dist: pandas>=2.2.3
+Requires-Dist: rnapolis>=0.8.2
+Requires-Dist: ruff>=0.11.6
+Requires-Dist: scikit-learn>=1.6.1
+Requires-Dist: scipy>=1.15.2
+Requires-Dist: torch>=2.6.0
+Requires-Dist: torch-cluster>=1.6.3
+Requires-Dist: torch-geometric>=2.6.1
+Requires-Dist: torch-scatter>=2.1.2
+Requires-Dist: torch-sparse>=0.6.18
+Requires-Dist: wandb>=0.19.9
+
+# FS25_AML_Group_28
+Advanced Machine Learning Course FS25 @ UZH; Group 28; RNA-3D
+
+# Installation (for macOS ARM)
+
+Install [uv](https://docs.astral.sh/uv/getting-started/installation/#upgrading-uv), either using curl or brew
+
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+# or
+brew install uv
+```
+
+Create a virtual env and install dependencies
+```bash
+uv venv --python 3.12
+source .venv/bin/activate
+uv pip install torch 
+uv sync --no-build-isolation --no-cache # install dependencies from pyproject.toml file, resolving conflics
+```
+
+Note that the list of dependencies does not include the `flash-attn`, since that requires a cuda installation.
+
+# Inference
+
+Load the model weights
+```bash
+tar -xvzf model_epoch_800.tar.gz && mkdir -p RNAgrail/save/grapharna && mv model_800.h RNAgrail/save/grapharna
+```
