@@ -20,3 +20,10 @@ uv sync --no-build-isolation --no-cache # install dependencies from pyproject.to
 ```
 
 Note that the list of dependencies does not include the `flash-attn`, since that requires a cuda installation.
+
+# Inference
+
+Load the model weights
+```bash
+tar -xvzf model_epoch_800.tar.gz && mkdir -p RNAgrail/save/grapharna && mv model_800.h RNAgrail/save/grapharna
+```
