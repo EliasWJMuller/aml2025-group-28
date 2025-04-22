@@ -17,6 +17,7 @@ uv venv --python 3.12
 source .venv/bin/activate
 uv pip install setuptools torch 
 uv add "grapharna@RNAgrail" --no-build-isolation --no-cache
+uv add "rinalmo@RNAgrail/RiNALMo/" --no-build-isolation --no-cache
 ```
 
 Note that the list of dependencies does not include the `flash-attn`, since that requires a cuda installation.
