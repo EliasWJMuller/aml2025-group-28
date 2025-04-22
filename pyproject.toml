@@ -1,0 +1,20 @@
+[project]
+name = "fs25-aml-group-28"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "biopython>=1.85",
+    "numpy>=2.2.5",
+    "pandas>=2.2.3",
+    "rnapolis>=0.8.2",
+    "scikit-learn>=1.6.1",
+    "scipy>=1.15.2",
+    "torch>=2.6.0",
+    "torch-cluster>=1.6.3",
+    "torch-geometric>=2.6.1",
+    "torch-scatter>=2.1.2",
+    "torch-sparse>=0.6.18",
+    "wandb>=0.19.9",
+]
