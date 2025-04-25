@@ -25,8 +25,8 @@ def set_seed(seed):
     random.seed(seed)
     np.random.seed(seed)
     seed_everything(seed)
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = False
+    torch.backends.mps.deterministic = True
+    torch.backends.mps.benchmark = False
 
 def cleanup():
     dist.destroy_process_group()
@@ -110,7 +110,7 @@ def main():
 
     sampler = Sampler(timesteps=args.timesteps)
     config = Config(dataset=args.dataset, dim=args.dim, n_layer=args.n_layer, cutoff_l=args.cutoff_l, cutoff_g=args.cutoff_g, mode=args.mode, knns=args.knns, transformer_blocks=args.blocks)
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    device = torch.device('mps' if torch.backends.mps.is_available() else 'cpu')
     # device = 'cpu'
     model = PAMNet(config).to(device)
     # model_path = f"save/still-valley-338/model_800.h5"
@@ -140,6 +140,8 @@ def main():
 
             torch.nn.utils.clip_grad_norm_(model.parameters(), 2.0, error_if_nonfinite=True) # prevent exploding gradients
             optimizer.step()
+            # step the scheduler after the optimizer
+            scheduler.step()
             losses.append(loss_all.item())
             denoise_losses.append(loss_denoise.item())
             if step % 1 == 0 and step != 0 and args.wandb :
@@ -156,7 +158,7 @@ def main():
             # if step >= max_steps:
             #     break
             step += 1
-        scheduler.step()
+        # scheduler.step()
 
         # if args.wandb:
         #     # wandb.log({'Train Loss': np.mean(losses), 'Val Loss': val_loss, 'Denoise Loss': np.mean(denoise_losses), 'Val Denoise Loss': val_denoise_loss, "LR": scheduler.get_last_lr()[0]})

@@ -20,8 +20,8 @@ def set_seed(seed):
     random.seed(seed)
     np.random.seed(seed)
     seed_everything(seed)
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = False
+    torch.backends.mps.deterministic = True
+    torch.backends.mps.benchmark = False
 
 def main():
     parser = argparse.ArgumentParser()
@@ -88,11 +88,14 @@ def main():
     
 
     model = PAMNet(config)
-    model.load_state_dict(torch.load(model_path))
-    print("Model loaded!")
-    model.eval()
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
     print("Device: ", device)
+
+    state = torch.load(model_path, map_location=device)
+    model.load_state_dict(state, strict=False)
+    model.to(device)
+    print("Model loaded! WORKS")
+    model.eval()
     model.to(device)
     ds = RNAPDBDataset("data/user_inputs/", name=dir_name, mode='coarse-grain')
     

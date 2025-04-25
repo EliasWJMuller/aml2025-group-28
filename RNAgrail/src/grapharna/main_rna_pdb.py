@@ -24,8 +24,8 @@ def set_seed(seed):
     random.seed(seed)
     np.random.seed(seed)
     seed_everything(seed)
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = False
+    torch.backends.mps.deterministic = True
+    torch.backends.mps.benchmark = False
 
 def cleanup():
     dist.destroy_process_group()
@@ -209,7 +209,7 @@ def run(main_fn, world_size):
              join=True)
 
 if __name__ == "__main__":
-    n_gpus = torch.cuda.device_count()
+    n_gpus = torch.backends.mps.device_count()
     print(f"Number of GPUs: {n_gpus}")
     assert n_gpus >= 2, f"Requires at least 2 GPUs to run, but got {n_gpus}"
     world_size = n_gpus
