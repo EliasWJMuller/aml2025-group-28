@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=61.0"]  # Ensure a recent version of setuptools
+requires = ["setuptools<65.0"]  # Ensure a recent version of setuptools
 build-backend = "setuptools.build_meta"
 
 [project]
