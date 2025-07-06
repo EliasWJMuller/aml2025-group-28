@@ -1,11 +1,9 @@
-import argparse
+import argparse  # Import argparse
 import os
 import pickle
+
+# from torch_geometric.data import Data
 import warnings
-from concurrent.futures import (  # Import for parallelization
-    ProcessPoolExecutor,
-    as_completed,
-)
 
 import Bio
 import numpy as np
@@ -86,7 +84,7 @@ def load_with_bio(molecule_file, seq_segments, file_type: str = ".pdb"):
                         res_coords[2] = atom.get_coord()
                         res_coords_update[2] = True
                     elif atom.get_name() == "C2":
-                        res_coords[3] = atom.get.coord()
+                        res_coords[3] = atom.get_coord()
                         res_coords_update[3] = True
                     elif atom.get_name() == pur_pir_C:
                         res_coords[4] = atom.get_coord()
@@ -264,9 +262,9 @@ def get_edges_in_COO(
             for i in range(2, 5):  # atoms: N, C2, Cx
                 at1 = nodes_indecies[
                     pair[0]
-                ][  # atom i (e.g. N) connect with the corresponding atom in the paired residue
+                ][
                     np.where(comb_arg_max[pair[0]] == i)[0]
-                ]
+                ]  # atom i (e.g. N) connect with the corresponding atom in the paired residue
                 at2 = nodes_indecies[pair[1]][np.where(comb_arg_max[pair[1]] == i)[0]]
                 edges.append([at1, at2])
                 edges.append([at2, at1])
@@ -346,128 +344,81 @@ def dot_to_bpseq(dot):
     return bpseq
 
 
-# This function will be executed in parallel processes
-def process_single_rna_file(
-    file_name, pdbs_dir, save_dir_full, file_3d_type, extended_dotbracket, sampling
-):
-    rna_file = os.path.join(pdbs_dir, file_name)
-
-    # if rna_file exists, skip (this check is important for restarting runs)
-    if os.path.exists(
-        os.path.join(save_dir_full, file_name.replace(file_3d_type, ".pkl"))
-    ):
-        return f"Skipped {file_name} (already processed)."
-    if not os.path.exists(rna_file):
-        return f"File not found: {rna_file}"
-
-    try:
-        # seq_path is None here as we infer from the 3D file for simplicity in parallelization
-        res_pairs, seq_segments = get_bpseq_pairs(
-            rna_file, seq_path=None, extended_dotbracket=extended_dotbracket
-        )
-    except IndexError:
-        return f"Error reading dotbracket for {file_name}"
-    except Exception as e:
-        return f"An unexpected error occurred while reading 2D structure for {file_name}: {e}"
-
-    if not seq_segments:
-        return f"Error reading sequence for {file_name}"
-
-    try:
-        # Call the existing processing logic
-        process_rna_file(
-            rna_file,
-            seq_segments,
-            file_3d_type,
-            sampling,
-            save_dir_full,
-            file_name,  # Pass file_name directly instead of 'name'
-            res_pairs,
-        )
-        return f"Successfully processed {file_name}"
-    except Bio.PDB.PDBExceptions.PDBConstructionException:
-        return f"Error reading molecule (invalid or missing coordinate) for {file_name}"
-    except IndexError as e:
-        return f"Index Error in processing {file_name}: {e}"
-    except Exception as e:
-        return f"An unexpected error occurred during processing {file_name}: {e}"
-
-
 def construct_graphs(
-    seq_dir,  # This is kept for compatibility but will be None in main()
+    seq_dir,
     pdbs_dir,
     save_dir,
     save_name,
     file_3d_type: str = ".pdb",
     extended_dotbracket: bool = True,
     sampling: bool = False,
-    num_cpus: int = None,  # New argument for number of CPUs
 ):
     """
+
     Args:
-        seq_dir: directory with .seq files (currently not used for parallelization)
+        seq_dir: directory with .seq files
         pdbs_dir: directory with 3D structures
         save_dir: directory to save the graphs
         save_name: name of the file to save the graphs
-        file_3d_type: type of 3D structure files (e.g., ".pdb", ".cif")
+        file_3d_type: type of 3D structure files
         extended_dotbracket: if True, include non-canonical pairings in 2D structure
         sampling: if True, skips reading coordinates and generates fake atoms. For sampling ONLY.
-        num_cpus: Number of CPU cores to use for parallel processing.
     """
     save_dir_full = os.path.join(save_dir, save_name)
 
     if not os.path.exists(save_dir_full):
         os.makedirs(save_dir_full)
 
-    # Determine the list of files to process
     if seq_dir is not None:
         name_list = [x for x in os.listdir(seq_dir)]
         name_list = [x for x in name_list if ".seq" in x]
-        # Note: If seq_dir is used, the name conversion from .seq to file_3d_type
-        # needs to happen inside the parallel function, or adjust name_list here.
-        # For simplicity, this parallelized version assumes seq_dir is None,
-        # meaning files are directly picked from pdbs_dir.
-        # If seq_dir truly needs to be supported, more complex logic is needed here.
-        print(
-            "Warning: Parallelization is optimized for seq_dir=None. "
-            "If .seq files are crucial, please adjust 'process_single_rna_file'."
-        )
     else:
-        name_list = [x for x in os.listdir(pdbs_dir) if x.endswith(file_3d_type)]
+        name_list = [x for x in os.listdir(pdbs_dir)]
+        name_list = [x for x in name_list if file_3d_type in x]
 
-    if not name_list:
-        print(
-            f"No files with extension '{file_3d_type}' found in '{pdbs_dir}'. Exiting."
-        )
-        return
+    for i in tqdm(range(len(name_list))):
+        name = name_list[i]
 
-    print(f"Found {len(name_list)} files to process. Using up to {num_cpus} CPUs.")
+        if seq_dir is not None:  # To remove
+            seq_path = os.path.join(seq_dir, name)
+            seq_segments = read_seq_segments(seq_path)
+            name = name.replace(".seq", file_3d_type)
+        else:
+            seq_path = None
+            seq_segments = None
 
-    # Use ProcessPoolExecutor for parallel processing
-    # If num_cpus is None, it defaults to os.cpu_count()
-    with ProcessPoolExecutor(max_workers=num_cpus) as executor:
-        # Submit tasks to the pool
-        futures = {
-            executor.submit(
-                process_single_rna_file,
-                name,
-                pdbs_dir,
-                save_dir_full,
-                file_3d_type,
-                extended_dotbracket,
-                sampling,
-            ): name
-            for name in name_list
-        }
+        rna_file = os.path.join(pdbs_dir, name)
 
-        # Use tqdm to show progress for completed futures
-        for future in tqdm(
-            as_completed(futures), total=len(futures), desc="Processing RNA files"
+        # if rna_file exists, skip
+        if os.path.exists(
+            os.path.join(save_dir_full, name.replace(file_3d_type, ".pkl"))
         ):
-            result = future.result()
-            if "Error" in result or "Skipped" in result:
-                # Print errors/skips directly, but don't stop the whole process
-                print(result)
+            continue
+        if not os.path.exists(rna_file):
+            print("File not found", rna_file)
+            continue
+
+        try:
+            res_pairs, seq_segments = get_bpseq_pairs(
+                rna_file, seq_path=seq_path, extended_dotbracket=extended_dotbracket
+            )
+        except IndexError:
+            print("Error reading dotbracket", rna_file)
+            continue
+
+        if not seq_segments:
+            print("Error reading sequence", rna_file)
+            continue
+
+        process_rna_file(
+            rna_file,
+            seq_segments,
+            file_3d_type,
+            sampling,
+            save_dir_full,
+            name,
+            res_pairs,
+        )
 
 
 def process_rna_file(
@@ -503,9 +454,8 @@ def process_rna_file(
                 coords_updated,
             ) = load_with_bio(rna_file, seq_segments, file_3d_type)
         except Bio.PDB.PDBExceptions.PDBConstructionException:
-            # Re-raise or handle more gracefully if this is a common issue
-            raise  # Let the calling function handle this specific error type
-            # return # No return here as process_single_rna_file catches it
+            print("Error reading molecule (invalid or missing coordinate)", rna_file)
+            return
 
     elem_indices = set(
         [i for i, x in enumerate(elements) if x in KEEP_ELEMENTS]
@@ -538,11 +488,8 @@ def process_rna_file(
         == len(c4_primes)
     )
     if len(rna_pos) == 0:
-        # Re-raise or handle more gracefully if this is a common issue
-        raise ValueError(
-            f"Structure contains too few atoms (e.g. backbone only) for {name}."
-        )
-        # return # No return here as process_single_rna_file catches it
+        print("Structure contains too few atoms (e.g. backbone only).", rna_file)
+        return
 
     crs_gr_mask = get_coarse_grain_mask(atoms_symbols, residues_names)
 
@@ -563,9 +510,8 @@ def process_rna_file(
             data, seq_segments, p_missing=p_missing, bpseq=res_pairs
         )
     except IndexError as e:
-        # Re-raise or handle more gracefully if this is a common issue
-        raise IndexError(f"Index Error in get_edges_in_COO for {name}: {e}")
-        # return # No return here as process_single_rna_file catches it
+        print(f"Index Error in processing {name}: {e}")
+        return
     data["edges"] = np.array(edges)
     data["edge_type"] = edge_type
 
@@ -593,61 +539,28 @@ def main():
         "--save_name",
         type=str,
         required=True,
-        help="Name of the output subdirectory for pickle files (e.g., train-pkl).",
-    )
-    parser.add_argument(
-        "--file_type",
-        type=str,
-        default=".pdb",
-        help="Type of 3D structure files (e.g., .pdb, .cif). Default: .pdb",
-    )
-    parser.add_argument(
-        "--extended_dotbracket",
-        action="store_true",
-        help="If set, include non-canonical pairings in 2D structure.",
-    )
-    parser.add_argument(
-        "--sampling",
-        action="store_true",
-        help="If set, skips reading coordinates and generates fake atoms. For sampling ONLY.",
-    )
-    parser.add_argument(
-        "--num_cpus",
-        type=int,
-        default=os.cpu_count(),  # Default to all available CPUs
-        help="Number of CPU cores to use for parallel processing. Defaults to all available.",
+        help="Name of the output pickle file (e.g., train-pkl).",
     )
     args = parser.parse_args()
+
+    extended_dotbracket = False
+    seq_dir = None  # Based on your initial command, you are not using seq files
 
     # Use the arguments provided by the user
     pdbs_dir = args.pdb_dir
     save_dir = args.save_dir
     save_name = args.save_name
-    file_3d_type = args.file_type
-    extended_dotbracket = args.extended_dotbracket
-    sampling = args.sampling
-    num_cpus = args.num_cpus
-
-    # seq_dir is kept None as per your previous usage, meaning sequence and 2D structure
-    # will be inferred from the 3D structure file.
-    seq_dir = None
 
     construct_graphs(
         seq_dir,
         pdbs_dir,
         save_dir,
         save_name,
-        file_3d_type=file_3d_type,
+        file_3d_type=".cif",
         extended_dotbracket=extended_dotbracket,
-        sampling=sampling,
-        num_cpus=num_cpus,  # Pass the number of CPUs
+        sampling=False,
     )
 
 
 if __name__ == "__main__":
-    # Essential for multiprocessing on Windows and for robustness on other OS
-    # This block ensures that each new process starts fresh.
-    # It must be placed directly within the 'if __name__ == "__main__":' block.
-    # For more details: https://docs.python.org/3/library/multiprocessing.html#multiprocessing.freeze_support
-    # and https://docs.python.org/3/library/multiprocessing.html#safe-import-of-main-module
     main()
