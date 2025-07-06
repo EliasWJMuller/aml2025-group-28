@@ -1,9 +1,9 @@
 [build-system]
-requires = ["setuptools>=61.0"]  # Ensure a recent version of setuptools
+requires = ["setuptools<65.0"]  # Ensure a recent version of setuptools
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "GraphaRNA"
+name = "gapharna"
 version = "0.1.0"
 description = "Graph Neural Network and Diffusion Model for Modeling RNA Interatomic Interactions"
 authors = [{name = "Marek Justyna", email = "mjustyna@cs.put.poznan.pl"}]
