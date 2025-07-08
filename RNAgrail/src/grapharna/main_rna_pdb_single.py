@@ -1,7 +1,8 @@
 import os
 import os.path as osp
 import argparse
-import numpy as np
+import numpy as np        
+from tqdm import tqdm
 import random
 import torch
 import torch.nn.functional as F
@@ -15,10 +16,12 @@ from torch_geometric.loader import DataLoader
 from torch_geometric import seed_everything
 import wandb
 
-from grapharna.models import PAMNet, Config
-from grapharna.datasets import RNAPDBDataset
-from grapharna.utils import Sampler, SampleToPDB
-from grapharna.losses import p_losses
+print(os.getcwd())
+
+from models import PAMNet, Config
+from datasets import RNAPDBDataset
+from utils import Sampler, SampleToPDB
+from losses import p_losses
 
 def set_seed(seed):
     torch.manual_seed(seed)
@@ -126,7 +129,7 @@ def main():
         step = 0
         losses = []
         denoise_losses = []
-        for data, name, seqs in train_loader:
+        for data, name, seqs in tqdm(train_loader, desc=f"Epoch {epoch}"):
             mask = data.x[:, -1].bool()
             data = data.to(device)
             optimizer.zero_grad()
@@ -171,9 +174,9 @@ def main():
         if not os.path.exists(save_folder):
             os.makedirs(save_folder)
 
-        if epoch %1 == 0:
-            print(f"Saving model at epoch {epoch} to {save_folder}")
-            torch.save(model.state_dict(), f"{save_folder}/model_{epoch}.h5")
+        # if epoch %1 == 0:
+        #     print(f"Saving model at epoch {epoch} to {save_folder}")
+        #     torch.save(model.state_dict(), f"{save_folder}/model_{epoch}.h5")
 
         # if best_val_loss is None or val_loss < best_val_loss:
         #     best_val_loss = val_loss

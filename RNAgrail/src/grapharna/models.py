@@ -7,7 +7,7 @@ from torch_geometric.nn import knn
 from torch_geometric.utils import remove_self_loops
 from rinalmo.pretrained import get_pretrained_model
 
-from grapharna.layers import Global_MessagePassing, Local_MessagePassing, \
+from layers import Global_MessagePassing, Local_MessagePassing, \
     BesselBasisLayer, SphericalBasisLayer, MLP
 
 class Config(object):

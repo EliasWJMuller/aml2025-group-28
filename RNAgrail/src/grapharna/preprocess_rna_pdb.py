@@ -6,13 +6,13 @@ import Bio
 from Bio.PDB import PDBParser, MMCIFParser
 from rnapolis.annotator import extract_secondary_structure
 from rnapolis.parser import read_3d_structure
-# from torch_geometric.data import Data
+# from torch_geometric.data import Datax
 import warnings
 from Bio import BiopythonWarning
 
 warnings.simplefilter('ignore', BiopythonWarning)
 
-from grapharna.constants import RESIDUES, ATOM_TYPES, RESIDUE_CONNECTION_GRAPH,\
+from constants import RESIDUES, ATOM_TYPES, RESIDUE_CONNECTION_GRAPH,\
     DOT_OPENINGS, DOT_CLOSINGS_MAP, KEEP_ELEMENTS, COARSE_GRAIN_MAP, ATOM_ELEMENTS
 
 
@@ -205,13 +205,21 @@ def get_bpseq_pairs(rna_file, seq_path, extended_dotbracket=True):
     else:
         with open(rna_file) as f:
             structure3d = read_3d_structure(f, 1)
-            structure2d = extract_secondary_structure(structure3d, 1)
+            try: 
+                structure2d = extract_secondary_structure(structure3d, 1)
+            except Exception as e:
+                print(f"Skipping file due to secondary structure extraction error: {rna_file}\n{e}")
+                return [], []
         if extended_dotbracket: # include non-canonical pairings
             dot = structure2d.extendedDotBracket.split('\n')
         else:
             dot = structure2d.dotBracket.split('\n')
         dot, seq_segments = dotbrackets_to_single_line(dot)
-    res_pairs = dot_to_bpseq(dot)
+    try:
+        res_pairs = dot_to_bpseq(dot)
+    except AssertionError as e:
+        print(f"Skipping file due to invalid dotbracket: {rna_file}")
+        return [], []
     return res_pairs, seq_segments
 
 def dot_to_segments(dot):
@@ -228,7 +236,10 @@ def dot_to_bpseq(dot):
     bpseq = []
     dot_line = "".join(dot)
     for i, x in enumerate(dot_line):
-        assert x in DOT_OPENINGS + list(DOT_CLOSINGS_MAP.keys()) + ["."], f"Invalid character in dotbracket: {x}"
+        if x not in DOT_OPENINGS + list(DOT_CLOSINGS_MAP.keys()) + ["."]:
+            print(f"Invalid character in dotbracket: {x} (file/line: {i})")
+            print("Dotbracket string:", dot_line)
+            raise AssertionError(f"Invalid character in dotbracket: {x}")        
         if x not in stack and x != ".":
                 stack[x] = []
         if x in DOT_OPENINGS:
