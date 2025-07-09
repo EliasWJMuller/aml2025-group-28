@@ -67,48 +67,38 @@ class Sampler:
 
         # define alphas
         alphas = 1.0 - self.betas
-        alphas_cumprod = torch.cumprod(alphas, axis=0)
-        alphas_cumprod_prev = F.pad(alphas_cumprod[:-1], (1, 0), value=1.0)
-        self.sqrt_recip_alphas = torch.sqrt(1.0 / alphas)
+        self.alphas_cumprod = torch.cumprod(alphas, axis=0)
+        self.alphas_cumprod_prev = F.pad(self.alphas_cumprod[:-1], (1, 0), value=1.0)
 
         # calculations for diffusion q(x_t | x_{t-1}) and others
-        self.sqrt_alphas_cumprod = torch.sqrt(alphas_cumprod)
-        self.sqrt_one_minus_alphas_cumprod = torch.sqrt(1.0 - alphas_cumprod)
-
-        # calculations for posterior q(x_{t-1} | x_t, x_0)
-        self.posterior_variance = (
-            self.betas * (1.0 - alphas_cumprod_prev) / (1.0 - alphas_cumprod)
-        )
+        self.sqrt_alphas_cumprod = torch.sqrt(self.alphas_cumprod)
+        self.sqrt_one_minus_alphas_cumprod = torch.sqrt(1.0 - self.alphas_cumprod)
 
     @torch.no_grad()
     def p_sample(self, model, seqs, x_raw, t, t_index, coord_mask, atoms_mask):
         x = x_raw.x * coord_mask
-        betas_t = self.extract(self.betas, t, x.shape)
+        
+        pred_noise = model(x_raw, seqs, t) * coord_mask
+
+        sqrt_alphas_cumprod_t = self.extract(self.sqrt_alphas_cumprod, t, x.shape)
         sqrt_one_minus_alphas_cumprod_t = self.extract(
             self.sqrt_one_minus_alphas_cumprod, t, x.shape
         )
-        sqrt_recip_alphas_t = self.extract(self.sqrt_recip_alphas, t, x.shape)
-
-        # Equation 11 in the paper
-        # Use our model (noise predictor) to predict the mean
-        model_mean = sqrt_recip_alphas_t * (
-            x
-            - betas_t
-            * model(x_raw, seqs, t)
-            * coord_mask
-            / sqrt_one_minus_alphas_cumprod_t
-        )
-
-        if t_index == 0:
-            x_raw.x = model_mean * coord_mask + x_raw.x * atoms_mask
-            return x_raw.x
-        else:
-            posterior_variance_t = self.extract(self.posterior_variance, t, x.shape)
-            noise = torch.randn_like(x)
-            # Algorithm 2 line 4:
-            out = model_mean + torch.sqrt(posterior_variance_t) * noise
-            x_raw.x = out * coord_mask + x_raw.x * atoms_mask
-            return x_raw.x
+        
+        # Equation 12 in the DDIM paper
+        # predict x_0
+        pred_x0 = (x - sqrt_one_minus_alphas_cumprod_t * pred_noise) / sqrt_alphas_cumprod_t
+        
+        alphas_cumprod_prev_t = self.extract(self.alphas_cumprod_prev, t, x.shape)
+        
+        # Equation 7 in DDIM paper
+        # Direction pointing to x_t
+        dir_xt = torch.sqrt(1. - alphas_cumprod_prev_t) * pred_noise
+        
+        x_prev = torch.sqrt(alphas_cumprod_prev_t) * pred_x0 + dir_xt
+        
+        x_raw.x = x_prev * coord_mask + x_raw.x * atoms_mask
+        return x_raw.x
 
     def add_fixed(self, raw_x, fixed, t, t_index, x_start):
         if torch.any(fixed) and t_index > 0:

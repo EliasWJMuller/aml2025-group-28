@@ -9,8 +9,9 @@ import numpy as np
 
 from grapharna import dot_to_bpseq, process_rna_file
 from grapharna.datasets import RNAPDBDataset
-from grapharna.utils import Sampler, read_dotseq_file
-from grapharna.main_rna_pdb import sample
+from grapharna.utils import read_dotseq_file
+from grapharna.utils.sampler_ddim import Sampler
+from grapharna.main_rna_pdb_single_ddim import sample
 from grapharna.models import PAMNet, Config
 
 
@@ -145,7 +146,7 @@ def main():
         device,
         sampler,
         epoch,
-        args,
+        args=args,
         num_batches=None,
         exp_name=f"{exp_name}-seed={args.seed}",
     )
