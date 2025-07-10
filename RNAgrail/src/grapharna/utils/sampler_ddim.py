@@ -77,26 +77,28 @@ class Sampler:
     @torch.no_grad()
     def p_sample(self, model, seqs, x_raw, t, t_index, coord_mask, atoms_mask):
         x = x_raw.x * coord_mask
-        
+
         pred_noise = model(x_raw, seqs, t) * coord_mask
 
         sqrt_alphas_cumprod_t = self.extract(self.sqrt_alphas_cumprod, t, x.shape)
         sqrt_one_minus_alphas_cumprod_t = self.extract(
             self.sqrt_one_minus_alphas_cumprod, t, x.shape
         )
-        
+
         # Equation 12 in the DDIM paper
         # predict x_0
-        pred_x0 = (x - sqrt_one_minus_alphas_cumprod_t * pred_noise) / sqrt_alphas_cumprod_t
-        
+        pred_x0 = (
+            x - sqrt_one_minus_alphas_cumprod_t * pred_noise
+        ) / sqrt_alphas_cumprod_t
+
         alphas_cumprod_prev_t = self.extract(self.alphas_cumprod_prev, t, x.shape)
-        
+
         # Equation 7 in DDIM paper
         # Direction pointing to x_t
-        dir_xt = torch.sqrt(1. - alphas_cumprod_prev_t) * pred_noise
-        
+        dir_xt = torch.sqrt(1.0 - alphas_cumprod_prev_t) * pred_noise
+
         x_prev = torch.sqrt(alphas_cumprod_prev_t) * pred_x0 + dir_xt
-        
+
         x_raw.x = x_prev * coord_mask + x_raw.x * atoms_mask
         return x_raw.x
 
@@ -110,7 +112,7 @@ class Sampler:
 
     # Algorithm 2
     @torch.no_grad()
-    def p_sample_loop(self, model, seqs, shape, context_mols):
+    def p_sample_loop(self, model, seqs, shape, context_mols, args=None):
         device = next(model.parameters()).device
 
         b = shape[0]
@@ -122,11 +124,16 @@ class Sampler:
         denoised = []
 
         context_mols.x = noise * coord_mask + context_mols.x * atoms_mask
-        for i in tqdm(
-            reversed(range(0, self.timesteps)),
-            desc="sampling loop time step",
-            total=self.timesteps,
-        ):
+
+        use_ddim = True  # Changed this to True to default to DDIM
+        if use_ddim and args is not None and args.ddim_steps is not None:
+            skip = self.timesteps // args.ddim_steps
+            indices = list(range(0, self.timesteps, skip))[::-1]
+        else:
+            indices = list(range(self.timesteps))[::-1]
+        print(f"Using {len(indices)} steps for sampling.")
+
+        for i in tqdm(indices, desc="sampling loop time step", total=len(indices)):
             context_mols.x = self.p_sample(
                 model,
                 seqs,
@@ -141,9 +148,13 @@ class Sampler:
         return denoised
 
     @torch.no_grad()
-    def sample(self, model, seqs, context_mols):
+    def sample(self, model, seqs, context_mols, args=None):
         return self.p_sample_loop(
-            model, seqs, shape=context_mols.x.shape, context_mols=context_mols
+            model,
+            seqs,
+            shape=context_mols.x.shape,
+            context_mols=context_mols,
+            args=args,
         )
 
     # forward diffusion (using the nice property)

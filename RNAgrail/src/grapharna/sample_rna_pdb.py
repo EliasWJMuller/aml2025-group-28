@@ -132,11 +132,23 @@ def main():
     print("Model loaded! WORKS")
     model.eval()
     model.to(device)
-    ds = RNAPDBDataset("data/user_inputs/", name=dir_name, mode="coarse-grain")
+    if args.dataset is not None:
+        if args.dataset == "kaggle":
+            ds = RNAPDBDataset("data/kaggle/", name="val-pkl", mode=args.mode)
+            print(args.batch_size, "batch size")
+            print(len(ds), "samples in the dataset")
+        else:
+            print(f"Unsupported dataset: {args.dataset}")
+            return
+    else:  # args.input is not None
+        name = os.path.basename(args.input)
+        dir_name = name.replace(".dotseq", "")
+        ds = RNAPDBDataset("data/user_inputs/", name=dir_name, mode=args.mode)
 
     ds_loader = DataLoader(
-        ds, batch_size=args.batch_size, shuffle=False, pin_memory=True
+        ds, batch_size=args.batch_size, shuffle=False, pin_memory=False
     )
+    print(len(ds_loader), "batches in the dataset")
     sampler = Sampler(timesteps=args.timesteps)
     print("Sampling...")
     sample(

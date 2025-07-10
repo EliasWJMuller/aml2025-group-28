@@ -64,7 +64,14 @@ def validation(model, loader, device, sampler, args):
 
 
 def sample(
-    model, loader, device, sampler, epoch, args=None, num_batches=None, exp_name: str = "run"
+    model,
+    loader,
+    device,
+    sampler,
+    epoch,
+    args=None,
+    num_batches=None,
+    exp_name: str = "run",
 ):
     model.eval()
     s = SampleToPDB()
@@ -73,7 +80,7 @@ def sample(
         for data, name, seqs in loader:
             print(f"Sample batch {s_counter}")
             data = data.to(device)
-            samples = sampler.sample(model, seqs, data)[-1]
+            samples = sampler.sample(model, seqs, data, args)[-1]
             s.to("pdb", samples, f"./samples/{exp_name}/{epoch}", name)
             s_counter += 1
 
