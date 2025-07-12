@@ -16,7 +16,7 @@ import barnaba as bb
 warnings.simplefilter("ignore", BiopythonWarning)
 
 from rnapolis.annotator import extract_secondary_structure
-from rnapolis.parser import read_3d_structure
+from parser import read_3d_structure
 
 
 def parse_args():
@@ -137,7 +137,6 @@ def superimpose_pdbs(
         if os.path.exists(f"{targets_path}/{pdb_name}"):
             ref_2d_structure = extract_2d_structure(f"{targets_path}/{pdb_name}")
             pred_2d_structure = extract_2d_structure(f"{trafl_path}/{pdb}")
-
             try:
                 inf = get_inf(pred_2d_structure, ref_2d_structure)
             except:
@@ -184,6 +183,7 @@ def align_biopython(trafl_path, targets_path, pdb, pdb_name):
 
 
 def align_pymol(trafl_path, targets_path, pdb, pdb_name):
+    
     cmd.reinitialize()
     cmd.load(f"{targets_path}/{pdb_name}", "ref")
     cmd.load(f"{trafl_path}/{pdb}", "structure")
