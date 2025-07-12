@@ -3,7 +3,7 @@ import torch
 import numpy as np
 import pickle
 from torch_geometric.data import Data, Dataset
-from grapharna.constants import BACKBONE_ATOMS, REV_RESIDUES
+from constants import BACKBONE_ATOMS, REV_RESIDUES
 
 class RNAPDBDataset(Dataset):
     def __init__(self,

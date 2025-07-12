@@ -1,6 +1,6 @@
 import torch
 import torch.nn.functional as F
-from grapharna.utils import Sampler
+from utils import Sampler
 
 def p_losses(denoise_model,
              x_data,

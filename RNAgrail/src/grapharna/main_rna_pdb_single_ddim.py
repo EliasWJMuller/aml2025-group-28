@@ -19,7 +19,8 @@ print(os.getcwd())
 from datasets import RNAPDBDataset
 from losses import p_losses
 from models import Config, PAMNet
-from utils import Sampler, SampleToPDB
+from utils.sample_to_pdb import SampleToPDB
+from utils.sampler_ddim import Sampler
 
 
 def set_seed(seed):
@@ -63,16 +64,23 @@ def validation(model, loader, device, sampler, args):
 
 
 def sample(
-    model, loader, device, sampler, epoch, num_batches=None, exp_name: str = "run"
+    model,
+    loader,
+    device,
+    sampler,
+    epoch,
+    args=None,
+    num_batches=None,
+    exp_name: str = "run",
 ):
     model.eval()
     s = SampleToPDB()
     s_counter = 0
     with torch.no_grad():
-        for data, name, seqs, mask in loader:
+        for data, name, seqs in loader:
             print(f"Sample batch {s_counter}")
             data = data.to(device)
-            samples = sampler.sample(model, seqs, data)[-1]
+            samples = sampler.sample(model, seqs, data, args)[-1]
             s.to("pdb", samples, f"./samples/{exp_name}/{epoch}", name)
             s_counter += 1
 

@@ -9,8 +9,9 @@ import numpy as np
 
 from grapharna import dot_to_bpseq, process_rna_file
 from grapharna.datasets import RNAPDBDataset
-from grapharna.utils import Sampler, read_dotseq_file
-from grapharna.main_rna_pdb import sample
+from grapharna.utils import read_dotseq_file
+from grapharna.utils.sampler_ddim import Sampler
+from grapharna.main_rna_pdb_single_ddim import sample
 from grapharna.models import PAMNet, Config
 
 
@@ -74,6 +75,12 @@ def main():
         type=int,
         default=800,
         help="Epoch of the model to be used for sampling",
+    )
+    parser.add_argument(
+        "--ddim_steps",
+        type=int,
+        default=None,
+        help="Number of DDIM steps to use for sampling. If not provided, the full number of timesteps will be used.",
     )
     # parser.add_argument('--fixed-ps', action='store_true', help='If True, P atoms will be fixed and the rest of the structure will be generated. Otherwise, the whole structure will be generated')
     args = parser.parse_args()
@@ -155,9 +162,9 @@ def main():
         device,
         sampler,
         epoch,
-        args,
+        args=args,
         num_batches=None,
-        exp_name=f"{exp_name}-seed={args.seed}-ddpm",
+        exp_name=f"{exp_name}-seed={args.seed}-ddim={args.ddim_steps}",
     )
     print(f"Results stored in path: samples/{exp_name}")
 

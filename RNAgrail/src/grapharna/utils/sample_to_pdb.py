@@ -3,7 +3,7 @@ import Bio
 import Bio.PDB
 import numpy as np
 from torch import Tensor
-from grapharna.constants import REV_ATOM_TYPES, REV_RESIDUES
+from constants import REV_ATOM_TYPES, REV_RESIDUES
 
 
 class SampleToPDB():

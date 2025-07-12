@@ -2,7 +2,7 @@ import argparse
 import os
 from tqdm import tqdm
 
-from grapharna.preprocess_rna_pdb import construct_graphs
+from preprocess_rna_pdb import construct_graphs
 
 
 def read_dotseq_file(file_path):

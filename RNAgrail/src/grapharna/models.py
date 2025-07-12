@@ -7,7 +7,7 @@ from torch_geometric.nn import knn
 from torch_geometric.utils import remove_self_loops
 from rinalmo.pretrained import get_pretrained_model
 
-from grapharna.layers import Global_MessagePassing, Local_MessagePassing, \
+from layers import Global_MessagePassing, Local_MessagePassing, \
     BesselBasisLayer, SphericalBasisLayer, MLP
 
 class Config(object):
@@ -51,7 +51,7 @@ class SequenceModule(nn.Module):
         tokens = torch.tensor(self.alphabet.batch_tokenize(seqs), dtype=torch.int64, device=device)
         flat_tokens = tokens.flatten()
         nt_positions = torch.where(flat_tokens > 4)[0]
-        with torch.no_grad(), torch.cuda.amp.autocast():
+        with torch.no_grad(), torch.amp.autocast(device_type="mps", dtype=torch.float16):
             outputs = self.rinalmo(tokens)
 
         out = self.out_embedding(outputs["representation"])
@@ -139,33 +139,49 @@ class PAMNet(nn.Module):
 
     def indices(self, edge_index, num_nodes):
         row, col = edge_index
-
-        value = torch.arange(row.size(0), device=row.device)
-        adj_t = SparseTensor(row=col, col=row, value=value,
+        # Build a CPU sparse adjacency for two- and one-hop computations
+        row_cpu = row.cpu()
+        col_cpu = col.cpu()
+        value_cpu = torch.arange(row_cpu.size(0), device='cpu')
+        adj_t = SparseTensor(row=col_cpu, col=row_cpu, value=value_cpu,
                              sparse_sizes=(num_nodes, num_nodes))
-        adj_t_row = adj_t[row]
-        num_triplets = adj_t_row.set_value(None).sum(dim=1).to(torch.long)
 
-        idx_i = col.repeat_interleave(num_triplets)
-        idx_j = row.repeat_interleave(num_triplets)
-        idx_k = adj_t_row.storage.col()
-        mask = idx_i != idx_k  # Remove i == k triplets.
-        idx_i, idx_j, idx_k = idx_i[mask], idx_j[mask], idx_k[mask]
+        # Two-hop neighbors on CPU
+        adj_t_row = adj_t[row_cpu]
+        num_triplets_cpu = adj_t_row.set_value(None).sum(dim=1).to(torch.long)
+        idx_i_cpu = col_cpu.repeat_interleave(num_triplets_cpu)
+        idx_j_cpu = row_cpu.repeat_interleave(num_triplets_cpu)
+        idx_k_cpu = adj_t_row.storage.col()
+        mask_cpu = idx_i_cpu != idx_k_cpu
+        idx_i_cpu, idx_j_cpu, idx_k_cpu = idx_i_cpu[mask_cpu], idx_j_cpu[mask_cpu], idx_k_cpu[mask_cpu]
+        idx_kj_cpu = adj_t_row.storage.value()[mask_cpu]
+        idx_ji_cpu = adj_t_row.storage.row()[mask_cpu]
 
-        idx_kj = adj_t_row.storage.value()[mask]
-        idx_ji = adj_t_row.storage.row()[mask]
-        adj_t_col = adj_t[col]
+        # One-hop neighbor pairs on CPU
+        adj_t_col = adj_t[col_cpu]
+        num_pairs_cpu = adj_t_col.set_value(None).sum(dim=1).to(torch.long)
+        idx_i_pair_cpu = row_cpu.repeat_interleave(num_pairs_cpu)
+        idx_j1_pair_cpu = col_cpu.repeat_interleave(num_pairs_cpu)
+        idx_j2_pair_cpu = adj_t_col.storage.col()
+        mask_j_cpu = idx_j1_pair_cpu != idx_j2_pair_cpu
+        idx_i_pair_cpu = idx_i_pair_cpu[mask_j_cpu]
+        idx_j1_pair_cpu = idx_j1_pair_cpu[mask_j_cpu]
+        idx_j2_pair_cpu = idx_j2_pair_cpu[mask_j_cpu]
+        idx_ji_pair_cpu = adj_t_col.storage.row()[mask_j_cpu]
+        idx_jj_pair_cpu = adj_t_col.storage.value()[mask_j_cpu]
 
-        num_pairs = adj_t_col.set_value(None).sum(dim=1).to(torch.long)
-        idx_i_pair = row.repeat_interleave(num_pairs)
-        idx_j1_pair = col.repeat_interleave(num_pairs)
-        idx_j2_pair = adj_t_col.storage.col()
-
-        mask_j = idx_j1_pair != idx_j2_pair  # Remove j == j' triplets.
-        idx_i_pair, idx_j1_pair, idx_j2_pair = idx_i_pair[mask_j], idx_j1_pair[mask_j], idx_j2_pair[mask_j]
-
-        idx_ji_pair = adj_t_col.storage.row()[mask_j]
-        idx_jj_pair = adj_t_col.storage.value()[mask_j]
+        # Move all indices back to the original device
+        device = row.device
+        idx_i = idx_i_cpu.to(device)
+        idx_j = idx_j_cpu.to(device)
+        idx_k = idx_k_cpu.to(device)
+        idx_kj = idx_kj_cpu.to(device)
+        idx_ji = idx_ji_cpu.to(device)
+        idx_i_pair = idx_i_pair_cpu.to(device)
+        idx_j1_pair = idx_j1_pair_cpu.to(device)
+        idx_j2_pair = idx_j2_pair_cpu.to(device)
+        idx_ji_pair = idx_ji_pair_cpu.to(device)
+        idx_jj_pair = idx_jj_pair_cpu.to(device)
 
         return idx_i, idx_j, idx_k, idx_kj, idx_ji, idx_i_pair, idx_j1_pair, idx_j2_pair, idx_jj_pair, idx_ji_pair
     
@@ -199,7 +215,10 @@ class PAMNet(nn.Module):
 
         pos = data.x[base_atoms, :3].contiguous()
         batch = data.batch[base_atoms]
-        row, col = knn(pos, pos, self.knns, batch, batch)
+        pos_cpu = pos.cpu()
+        batch_cpu = batch.cpu()
+        row_cpu, col_cpu = knn(pos_cpu, pos_cpu, self.knns, batch_cpu, batch_cpu)
+        row, col = row_cpu.to(pos.device), col_cpu.to(pos.device)
         edge_index_knn = torch.stack([row, col], dim=0)
         edge_index_knn, dist_knn = self.get_edge_info(edge_index_knn, pos)
         cutoff_thr = torch.ones_like(dist_knn, device=dist_knn.device) * cutoff
@@ -246,7 +265,11 @@ class PAMNet(nn.Module):
         # x_prop = self.atom_properties(x) # atom properties embeddings
         x = torch.cat([x_pos, seq_x, time_emb], dim=1)
 
-        row, col = knn(pos, pos, self.knns, batch, batch)
+        pos_cpu = pos.cpu()
+        batch_cpu = batch.cpu()
+        row_cpu, col_cpu = knn(pos_cpu, pos_cpu, self.knns, batch_cpu, batch_cpu)
+        row, col = row_cpu.to(pos.device), col_cpu.to(pos.device)
+
         edge_index_knn = torch.stack([row, col], dim=0)
         edge_index_knn, _, dist_knn = self.get_edge_info(edge_index_knn, edge_attr=None, pos=pos)
 
