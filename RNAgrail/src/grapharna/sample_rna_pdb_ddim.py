@@ -140,13 +140,11 @@ def main():
     model.eval()
     model.to(device)
     if args.dataset is not None:
-        if args.dataset == "kaggle":
-            ds = RNAPDBDataset("data/kaggle/", name="val-pkl", mode=args.mode)
-            print(args.batch_size, "batch size")
-            print(len(ds), "samples in the dataset")
-        else:
-            print(f"Unsupported dataset: {args.dataset}")
-            return
+        root = os.path.dirname(args.dataset)
+        name = os.path.basename(args.dataset)
+        ds = RNAPDBDataset(root, name=name, mode=args.mode)
+        print(args.batch_size, "batch size")
+        print(len(ds), "samples in the dataset")
     else:  # args.input is not None
         name = os.path.basename(args.input)
         dir_name = name.replace(".dotseq", "")
@@ -166,7 +164,7 @@ def main():
         epoch,
         args=args,
         num_batches=None,
-        exp_name=f"{exp_name}-seed={args.seed}",
+        exp_name=f"{exp_name}-seed={args.seed}-ddim={args.ddim_steps}",
     )
     print(f"Results stored in path: samples/{exp_name}")
 
